@@ -1,0 +1,371 @@
+---
+title: "Regresión Avanzada Proyecto Final"
+author: "Alejandra Lelo de Larrea Ibarra 00012433 \\ Laura López Santibañez Jácome 000144088 \\ Dante Ruiz Martínez 000183340"
+date: "10 de diciembre del 2018"
+header-includes:
+  - \usepackage[utf8]{inputenc}
+  - \usepackage[spanish,mexico]{babel}
+  - \usepackage{arydshln}
+abstract: "Agregar un resumen al final."
+output: 
+  pdf_document:
+    fig_caption: yes
+    number_sections: true
+    toc: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r setup2}
+pdf.options(encoding='ISOLatin1')
+```
+
+```{r setWD}
+# Ruta ALE
+setwd("~/Documents/ITAM_Maestria/03_Otono_2018/01_Regresion_Avanzada/05_Examen_Final")
+
+# Ruta Banxico
+# setwd("//client/E$/ITAM_Maestria/03_Otono_2018/01_Regresion_Avanzada/05_Proyecto_Final")
+
+# Ruta Laura
+
+# Ruta Dante
+```
+
+```{r librerias,message=FALSE, warning=FALSE}
+
+# Cargamos librerias
+library(R2jags) # Para simulaciones
+library(tidyverse) # Para manipular datos
+library(xtable) # para edición de tablas
+library(pastecs)#para analisis descriptivo de datos
+
+```
+
+```{r funciones_aux}
+source('02_Utils.R')
+```
+
+\newpage
+# Introducción
+
+## Problema
+
+## Objetivo
+
+## Hipótesis
+
+
+
+# Datos
+
+## Descripción de los datos
+
+\begin{table}[h]
+  \small
+  \caption{Resumen de los Datos}
+  \label{tabla:Datos}
+  \begin{tabular}{l|p{5cm}|p{3cm}|l|l}
+    \hline
+    Código & Variable &  Unidades & Fuente & Ticker \\
+    \hline
+    WTI & West Texas Intermediate &  Dólares por barril & Bloomberg & CL1 Comdty \\
+    \hdashline
+    JPM Dollar Index & JPM Dollar Index &	Unidades & Bloomberg & FXJPEMCI Index \\
+    \hdashline
+    VIX & Chicago Board Options Exchange SPX Volatility Index & Unidades & Bloomberg & VIX Index \\
+    \hdashline
+    Prod. OPEP & Producción Total de Petróleo de la OPEP & Millones de barriles por día & Bloomberg & OPCRTOTL Index \\
+    \hdashline
+    Dem. Petróleo & Demanda Total de Petróleo de la OPEP & Millones de barriles por día & Bloomberg & OPCBRTOT Index\\
+    \hline
+    TBILL-10YR & Tasa de Largo Plazo de Estados Unidos & Por ciento & FRED & DGS10\\
+    \hdashline
+    TBILL-1YR & Tasa de Corto Plazo de Estados Unidos & Por ciento & FRED & DGS1\\
+    \hline
+  \end{tabular}
+\end{table}
+
+
+Se tienen observaciones mensuales del West Texas Intermediate (WTI), del JPM Dollar Index, del Chicago Board Options Exchange SPX Volatility Index (VIX), de la producción y demanda de petróleo por parte de la OPEP, así como las tasas de corto y largo plazo en Estados Unidos. La tabla \ref{tabla:Datos} resume las fuentes de información de los datos a utilizar en este trabajo. La muestra contiene 225 observaciones que corresponden al periodo de enero del 2000 a septiembre del 2018. Para estimar los modelos se utiliza el periodo comprendido entre enero del 2000 a junio del 2018; mientras que el horizonte de pronóstico va de julio a septiembre del 2018. La siguiente sección muestra una análisis exploratorio de los datos. 
+
+
+```{r LimpiezaDatos,warning=FALSE, message=FALSE}
+
+source('01_Clean_Data_Petroleo.R')
+
+```
+
+
+## Análisis exploratorio de los datos
+
+La variable WTI representa el precio de los contratos de futuros del petróleo crudo (para contratos de 1000 barriles). Como se puede apreciar en la figura \ref{fig:PlotWTI}, desde el inicio de la muestra y hasta antes de la crisis financiera del 2008, el precio del WTI presentaba una tendencia creciente. Posteriormente, durante la crisis presentó una caída significativa pasando de 140 dólares por barril a menos de 50 dólares por barril. Después de dicha crisis, el precio del WTI se recuperó alcanzando en algunos periodos precios superiores a los 100 dólares por barril. Sin embargo, en el primer trimestre del 2014 y hasta finales del 2015 (periodo de interés, marcado con la barra gris) volvió a presentar una caída drástica llegando a aproximadamente 36 dólares por barril. Dicha caída se ha revertido en los últimos, pero no parece regresar a los niveles previos al 2014 e incluso podría tratarse de un cambio estructural.
+
+
+```{r SetsDatos, cache=TRUE}
+# Seleccionamos el set de datos a usar
+datos<-datos_1 # Datos originales
+
+# Extraemos las fechas 
+Fecha<-datos$Fecha
+
+# Eliminamos la fecha de los datos 
+datos <- select(datos, -Fecha)
+
+# Función para graficar series de tiempo con estos datos. 
+plot_ts_datos<-plot_ts(datos,Fecha)
+
+```
+
+```{r PlotWTI,cache=TRUE, dependson=c('SetsDatos'), fig.pos='H', fig.width=12, fig.height=6, fig.cap='\\label{fig:PlotWTI}Serie de Tiempo del precio del West Texas Intermediate'}
+
+# WTI
+plot_ts_datos('WTI','firebrick1','West Texas Intermediate','Dólares por barril')
+
+```
+
+```{r TablaStatDesc, cache=TRUE, dependson=c('SetsDatos'), results='asis'}
+# Matriz de correlaciones
+estdesc<-rbind(stat.desc(datos),apply(datos,2,getmode))[c(8:9,15,12:14,4:6),]
+# Nombre de filas y columnas
+colnames(estdesc)<-c('WTI','JPM Dollar Ind.','VIX','Prod. OPEP','Dem. Petróleo','TBILL-10YR','TBILL-1YR')
+rownames(estdesc)<-c('Mediana','Media','Moda','Varianza','Desv.Est.','Coef. Var.','Min','Max','Rango')
+# Impresion de la tabla
+estdesc_tabla<-xtable(estdesc,caption='Estadísticas Descriptivas de las Variables de Estudio',
+                      label='tabla:estdesc')
+align(estdesc_tabla)<-'lrrrrrrr'
+print(estdesc_tabla,comment=FALSE,print.placement='H',caption.placement = 'top',digits=2,size='small')
+```
+
+```{r PlotsRegresores, cache=TRUE, dependson=c('SetsDatos'),fig.pos='H',fig.width=12,fig.height=12,fig.cap='\\label{fig:st_regresores}Serie de Tiempo de los Regresores'}
+
+par(mfrow=c(3,2))
+# JPM_Dollar_Index
+plot_ts_datos('JPM_Dollar_Index','royalblue1','a) JPM Dollar Index','Unidades')
+# VIX_Index
+plot_ts_datos('VIX_Index','darkgoldenrod1','b) VIX','Unidades')
+# OPEP_TOTPROD
+plot_ts_datos('OPEP_TOTPROD','olivedrab','c) Producción de la OPEP','Millones de barriles')
+# OPEP_TOTDEM
+plot_ts_datos('OPEP_TOTDEM','lightblue1','d) Demanda de Petróleo','Millones de barriles')
+# JPM_Dollar_Index
+plot_ts_datos('TBILL_10YR','coral','e) Tasa Largo Plazo EU','Porciento')
+# JPM_Dollar_Index
+plot_ts_datos('TBILL_1YR','mediumpurple1','f) Tasa Corto Plazo EU','Porciento')
+```
+
+
+La figura \ref{fig:st_regresores} muestra la serie de tiempo de cada una de las variables explicativas que se van a utilizar en la estimación de los modelos; por su parte, la tabla \ref{tabla:estdesc} muestra algunas estadísticas descriptivas de las mismas. El JPM Dollar Index, figura \ref{fig:st_regresores} a) representa el índice del tipo de cambio del dólar americano respecto a las monedas de algunas economías emergentes. En este sentido, es una medida de la fortaleza del dólar. Cabe destacar que existen otros indicadores similares (como el DXY), pero que ponderan por el tipo de cambio de las economías avanzadas que, en su mayoría, no son productoras de petróleo por lo que el impacto en el precio del WTI sería menor. Desde 2002 y previo a la crisis del 2008, el dólar presentó una fortaleza creciente frente a las economías emergentes; mientras que durante la crisis del 2008 se debilitó de manera importante. A pesar de haber tenido una rápida recuperación en el periodo post-crisis, desde el 2011 el JPM Dollar Index presentó su mayor caída (en el periodo muestral) manteniéndose relativamente estable desde inicios del 2016, pero volviendo a debilitarse en este último año. 
+
+
+La figura \ref{fig:st_regresores} b) muestra la serie de tiempo del VIX, el cual refleja una estimación de la volatilidad futura del mercado basada en el promedio ponderado de las volatilidades implícitas para una amplia gama de precios de ejercicio. La serie del VIX presenta valores altos al inicio de la muestra y, como era de esperarse, presenta un gran pico en la crisis financiera del 2008 pues es el momento de mayor incertidumbre en los mercados a lo largo de periodo muestral. Cabe destacar que durante el periodo de interés la estimación de la volatilidad futura del mercado se mantuvo relativamente estable. 
+
+
+La producción total de petróleo por parte de los países miembros de la OPEP se puede encontrar en la figura \ref{fig:st_regresores} c). De manera general, se puede apreciar una tendencia creciente a lo largo de todo el periodo muestra, aunque con algunos episodios de baja en la producción del crudo. Es interesante destacar que, durante la crisis financiera del 2008, la producción de petróleo por parte de la OPEP tuvo una fuerte caída; mientras que en el periodo de interés, la producción de petróleo se incremento a un ritmo elevado, llegando a máximos históricos a finales del 2016. De hecho, en la literatura, el incremento en la oferta del petróleo se reconoce como una de las principales causas de la caída de los precios de crudo.
+
+
+La figura \ref{fig:st_regresores} d) muestra la serie de tiempo de la demanda de petróleo tanto por parte de países miembros de la OPEP como de los no miembros de la misma. Análogo al caso de la producción de petróleo, la demanda de este comodity se ha incrementado a lo largo de toda la muestra. Además, esta serie parece tener un componente estacional, incrementándose la demanda por petróleo en los meses de invierno y disminuyendo durante el verano. Durante el periodo de interés destaca un incremento de la demanda en el segundo semestre del 2015; sin embargo este no es el incremento más pronunciado de toda la muestra. Posiblemente, esta variable ayude a capturar tendencia en la estimación de los modelos. 
+
+
+La gráfica de la serie de tiempo de la tasa de largo plazo de Estados Unidos (Bono del Tesoro a 10 años) se puede encontrar en la figura \ref{fig:st_regresores} e). En general, la tasa de largo plazo ha disminuido a lo largo de la muestra, representando que se esperaban tasas de corto plazo menores a las observadas. A diferencia del resto de los indicadores, la tasa de largo plazo no muestra un comportamiento marcadamente distinto durante la crisis del 2008 (existen otros periodos con caídas similares a las del 2008 e incluso mayores). Durante el periodo de interés, esta tasa no muestra un comportamiento extraordinario. Sin embargo, en los últimos dos años se ha presentado un incremento de la tasa de largo plazo; lo cual, está en linea con la expectativa de normalización de la política monetaria de Estados Unidos. 
+
+
+Por último, la figura \ref{fig:st_regresores} f) muestra la evolución del Bono del Tesoro a un año de Estados Unidos; es decir, de la tasa de corto plazo. Se puede observar que entre el año 2000 y 2004, la tasa de corto plazo disminuyó significativamente pasando de niveles superiores al 6%, a niveles cercanos al 1%. Entre el 2004 y mediados del 2006, se dio un fuerte incremento en esta tasa alcanzando niveles cercanos al 5% y manteniéndose estable en este nivel por un par de años. Ante la crisis del 2008, la tasa de corto plazo comenzó con un ciclo de expansión de la política monetaria para fomentar el consumo y la inversión. Estados Unidos mantuvo su tasa de corto plazo cerca del cero desde el 2009 y hasta finales del 2015 con la finalidad de reactivar la economía. Finalmente, ante las señales de recuperación económica, y como se aprecia en la gráfica, a partir del 2016 se inicio un ciclo de alzas de tasas de interés para normalizar la política monetaria de dicho país, lo que se refleja en una tasa de corto plazo mayor hacia finales de la muestra. 
+
+
+```{r TablaCor, cache=TRUE, dependson=c('SetsDatos'), results='asis'}
+# Matriz de correlaciones
+mat_cor<-cor(datos)
+colnames(mat_cor)<-c('WTI','JPM Dollar Ind.','VIX','Prod. OPEP','Dem. OPEP','TBILL-10YR','TBILL-1YR')
+rownames(mat_cor)<-c('WTI','JPM Dollar Ind.','VIX','Prod. OPEP','Dem. OPEP','TBILL-10YR','TBILL-1YR')
+mat_cor_tabla<-xtable(mat_cor,caption='Matriz de correlaciones de las variables de estudio',
+                      label='tabla:mat_cor')
+align(mat_cor_tabla)<-'lrrrrrrr'
+print(mat_cor_tabla,comment=FALSE,print.placement='H',caption.placement = 'top',digits=2,size='small')
+```
+
+La tabla \ref{tabla:mat_cor} muestra la matriz de correlaciones de todas las variables en la muestra. En particular estamos interesados en conocer la correlación de cada uno de los regresores con el precio del WTI. Ninguna variable tiene una correlación superior a 0.5 con la variable de interés, sin embargo varias de ellas podrían considerarse altas. El índice del dólar, el nivel de producción de la OPEP y la demanda del Petróleo tiene una correlación alta y positiva con el WTI (`r mat_cor[1,2]`, `r mat_cor[1,4]`, y `r mat_cor[1,5]` respectivamente); por lo que esperaríamos que en los distintos modelos a estimar, estas variables fueran significativas y con coeficiente positivo. Tanto la tasa de largo como la de corto plazo tienen una correlación alta, pero negativa, con el precio del petróleo (`r mat_cor[1,6]` y `r mat_cor[1,7]`), por lo tanto. Por último el VIX tiene una correlación negativa pero muy pequeña con el WTI `r mat_cor[1,3]` por lo que podría no ser una variable significativa a la hora de estimar los modelos. 
+
+
+```{r Params, cache=TRUE, dependson=c('SetsDatos')}
+
+# No. obs predicción
+n <- nrow(datos)
+# No. obs pronosticos
+m <- 3
+# No. regresores
+k<- 6
+
+# hyperparametros
+niter<-20000
+nchains<-2
+nburning<-0.1*niter
+semilla<-3567
+
+```
+
+
+\newpage
+
+
+# Estimación de Modelos
+
+Como se mencionó con anterioridad, uno de los objetivos de este proyecto es analizar la crisis de los precios del petróleo entre el 2014 y 2016. En esta sección se procede a estimar distintos modelos de regresión para analizar si las variables de la muestra tienen impacto en el precio del WTI y, en particular, conocer la forma en que cada una de las variables explicativas incidió en ésta durante el periodo de interés. 
+
+
+La estimación de los modelos se hace en tres bloques: utilizando los datos originales, estandarizando los datos y transformando los datos (secciones \ref{sec:Originales}, \ref{sec:Estandarizados} y \ref{sec:Transformados}). Para cada uno de estos bloques se estiman al menos un modelo de regresión lineal normal clásico (con enfoque frecuentista), un modelo lineal generalizado estático, un modelo dinámico y un modelo dinámico con suavizamiento. A lo largo de cada una de las secciones se hace referencia a las razones por las cuales se decide estimar uno u otro modelo, los valores DIC y pseudo-R^2 obtenidos, así como los problemas que se presentaron en cada paso. Por último, al final de la sección se realiza una comparación de los modelos. Cabe mencionar que se presenta la estimación del modelo de regresión lineal normal clásico únicamente con la finalidad de comparar los modelos bayesianos que hemos visto en clase; ya que, en muchas ocasiones, una regresión lineal frecuentista es la primera opción que viene al a mente al estimar modelos de regresión. 
+
+
+## Datos Originales \label{sec:Originales}
+
+En esta sección se utilizan los datos originales; es decir, sin ningún tipo de escalamiento o transformación para estimar los distintos modelos.
+
+### Modelo de Regresión Clásico
+
+Como primer modelo, y con fines de comparación, se  estima una regresión lineal múltiple (con enfoque frecuentista) ya que, en la mayoría de los casos, ésta sería la primer opción a utilizar. El modelo a estimar se define como
+\begin{equation}\label{eq:RegLin}
+WTI_t=\beta_0+\beta_1JPM_t+\beta_2VIX_t+\beta_3 ProdOPEP_t+\beta_4 DemPet_t+\beta_5 TBILL10_t+\beta_6 TBILL1_t+\epsilon_t
+\end{equation}
+
+
+```{r,results='asis',cache=TRUE, dependson=c('SetsDatos','Params')}
+
+# Modelo de regresón con enfoque clásico
+modelo_RegLin <- lm(data = datos, formula = WTI ~ .)
+tabla_mod_RegLin<-summary(modelo_RegLin)$coefficients
+rownames(tabla_mod_RegLin)<-c('Intercepto','JPM Dollar Ind.','VIX Ind.','Prod. OPEP','Dem. OPEP', 'TBILL-1OYR','TBILL-1YR')
+colnames(tabla_mod_RegLin)<-c('Estimación','Desv. Est.','Valor t','Valor-p')
+
+tabla_mod_RegLin<-xtable(tabla_mod_RegLin,
+                         caption='Coeficientes Estimados Para el Modelo \\eqref{eq:RegLin}',
+                         label='tabla:coef_mod_RegLin')
+align(tabla_mod_RegLin)<-'l|rrrr'
+print(tabla_mod_RegLin,comment=FALSE,caption.placement = 'top')
+
+```
+
+Como se puede apreciar en la tabla \ref{tabla:coef_mod_RegLin}, todos los regresores son signficativos al 95% de confianza salvo el VIX y la tasa de largo plazo. En cuanto a los regresores que sí son significativos, el signo de los coeficientes coincide con lo esperado a partir de la matriz de correlaciones. En este sentido, ante un incremento de una unidad en el JPM Dollar Index, el precio del WTI se incrementaría en `r round(coef(summary(modelo_RegLin))[2,1],2)` dólares por barril; un incremento de un millón de barriles producidos llevaría a un incremento del precio del WTI de  `r round(coef(summary(modelo_RegLin))[4,1],2)` dólares por barril, un incremento de un millón de barriles en la demanda del petróleo estaría asociado a un incremento en el precio del WTI de `r round(coef(summary(modelo_RegLin))[5,1],2)` dólares por barril y un incremento de un punto porcentual en la tasa de tasa de corto plazo disminuiría el precio del WTI en `r round(coef(summary(modelo_RegLin))[7,1],2)` dólares por barril. Este modelo tiene un coeficiente de $R^2=$ `r round(summary(modelo_RegLin)$r.squared,2)`; es decir, el modelo explica un `r round(summary(modelo_RegLin)$r.squared,3)*100` % de la varianza de los datos. Este valor servirá para comparar con el valor de la pseudo $R^2$ de los modelos bayesianos. 
+
+### GLM Estático
+
+```{r GLM_Estatico, cache=TRUE, dependson=c('SetsDatos','Params'), message=FALSE, warning=FALSE, eval=TRUE, include=FALSE,cache=TRUE, dependson=c('SetsDatos')}
+
+source('Modelos/Modelo_Estatico.R')
+
+```
+
+El segundo modelo a estimar es un modelo lineal generalizado normal estático; de hecho, este modelo coincide con un Modelo de Regresión Normal Lineal. El modelo está definido como:
+\begin{eqnarray}\label{eq:mod_estatico}\nonumber
+  WTI_t&\sim& N(\mu_t,\tau_i)\\\nonumber
+  \mu_t&=&\beta_0+\beta_1JPM_t+\beta_2VIX_t+\beta_3 ProdOPEP_t+\beta_4 DemPet_t+\beta_5 TBILL10_t+\beta_6 TBILL1_t\\
+  \tau_i&=&\tau
+\end{eqnarray}
+
+Como distribución inicial de los coeficientes $\beta_j$ se utiliza una normal no informativa; esto es $\beta_j\sim N(0,0.001)$ con $j=0,1,\cdots,6$. La estimación del modelo se realizó utlizando JAGS en R. Se corrieron `r format(niter,scipen=999)` simulaciones para `r nchains` cadenas con un periodo de calentamiento de `r nburning` observaciones y sin adelgazamiento de la cadena (n.thin=1). En cuanto al ajuste del modelo, éste tuvo un valor $DIC=$ `r format(out_estat.dic,scipen=999)` y una pseudo-$R^2=$ `r format(round(pseudoR2_estat,2),scipen=999)`, por lo que el modelo está capturando aproximadamente el `r round(pseudoR2_estat,3)*100`% de la varianza de los datos.
+
+```{r Resumen_GLM_Estatico,cache=TRUE, dependson=c('GLM_Estatico'),results='asis'}
+#Tabla resumen
+out_estat.sum.t_tabla<-xtable(out_estat.sum.t,
+                              caption='Coeficientes Estimados para el Modelo \\eqref{eq:mod_estatico}',
+                              label='tabla:coef_mod_estat')
+align(out_estat.sum.t_tabla)<-'l|rrrrrr'
+print(out_estat.sum.t_tabla,comment=FALSE,caption.placement = 'top')
+```
+
+La tabla \ref{tabla:coef_mod_estat} muestra los coeficientes estimados para este modelo. Como estimadores puntuales se tienen la media (bajo pérdida cuadrática), la mediana (bajo pérdida absoluta) y la moda (bajo pérdida vecindad); además se incluye la estimación por intervalos. Como se puede apreciar, los esitmadores puntuales de la media y la mediana son muy parecidos para todos los coeficientes; mientras que el estimador puntual de la moda es el que más difiere en todos los casos. Todos los regresores son significativos --- y sus respectivos intervalos de probabilidad no contienen al cero --- salvo los correspondientes al nivel de producción de la OPEP y a la tasa de corto plazo. Estos resultados contrastan con los del modelo de regresión lineal clásico. 
+
+De esta manera, para los coeficientes significativos se tiene que un incremento de una unidad en el índice del dólar (todo lo demás constante) estará relacionado con un incremento de `r abs(round(out_estat.sum.t[2,1],2))` dólares por barril en el precio del WTI; un incremento de una unidad en el índice de volatilidad conlleva a una disminución de `r abs(round(out_estat.sum.t[3,1],2))` dólares por barril en el precio del petróleo, un incremento de un millón de barriles en la demanda del petróelo incrementará su precio en `r abs(round(out_estat.sum.t[5,1],2))` dólares por barril y un incremento de un punto porcentual en la tasa de largo plazo estará relacionado con una disminución de `r abs(round(out_estat.sum.t[6,1],2))` dólares por barril en el precio del WTI. 
+
+```{r PlotRegresores_Estatico, cache=TRUE, dependson=c('GLM_Estatico'),fig.width=12,fig.height=10,fig.cap='\\label{fig:Regresores_Estatico}Regresores vs WTI: Modelo \\eqref{eq:mod_estatico}'}
+#Predictions
+par(mfrow=c(3,2))
+# JPM_Dollar_Index vs. WTI
+plot_RegvsWTI(x.name='JPM_Dollar_Index',out.yp=out_estat.yp,pos_leg='topleft')
+# VIX_Index vs. WTI
+plot_RegvsWTI(x.name='VIX_Index',out.yp=out_estat.yp,pos_leg='topleft')
+# OPEP_TOTPROD vs. WTI
+plot_RegvsWTI(x.name='OPEP_TOTPROD',out.yp=out_estat.yp,pos_leg='topleft')
+# OPEP_TOTDEM vs. WTI
+plot_RegvsWTI(x.name='OPEP_TOTDEM',out.yp=out_estat.yp,pos_leg='topleft')
+# TBILL_10YR vs. WTI
+plot_RegvsWTI(x.name='TBILL_10YR',out.yp=out_estat.yp,pos_leg='topright')
+# TBILL_1YR vs. WTI
+plot_RegvsWTI(x.name='TBILL_1YR',out.yp=out_estat.yp,pos_leg='topright')
+```
+
+La figura \ref{fig:Regresores_Estatico} muestra el valor observado, el valor pronosticado y los intervalos de predicción para cada uno de los regresores vs el precio del WTI. Se puede notar que la variabilidad en todos los regresores es muy alta y que muchas observaciones quedan fuera de las bandas de predicción. 
+
+```{r tsWTI_Estatico, cache=TRUE, dependson=c('GLM_Estatico'), fig.width=12,fig.height=6,fig.cap='\\label{fig:tsWTI_Estat}Ajuste y Predicción: Modelo \\eqref{eq:mod_estatico}'}
+#t vs y
+par(mfrow=c(1,1))
+plot_tsWTI(out.yp=out_estat.yp,pos_leg='topleft')
+```
+
+Por último, la figura \ref{fig:tsWTI_Estat} muestra la serie de tiempo observada para el precio del WTI, los valores pronosticados y el pronóstico para el tercer trimestre del 2018 junto con sus intervalos de predicción.  El modelo captura de forma correcta la evolución del precio del WTI en la mayoría de los periodos; sin embargo, en algunos momentos la predicción sobrestima o subestima el verdadero valor como es el caso de la crisis del 2008 y, sobre todo, del periodo de interés. Si bien el pronóstico fuera de meustra tiene una tendencia que coincide con lo observado, el valor observado se sale de la banda de predicción. 
+
+### GLM Dinámico
+
+```{r GLM_Dinamico, cache=TRUE, dependson=c('SetsDatos','Params'), message=FALSE, warning=FALSE, eval=TRUE, include=FALSE}
+source('Modelos/Modelo_Dinamico.R')
+```
+
+Dado que el modelo estático parece no replicar correctamente la dinámica del WTI en algunos momentos del tiempo, como tercer modelo se estima un modelo lineal generalizado normal dinámico definido como:
+\begin{eqnarray}\label{eq:mod_dinam}\nonumber
+  WTI_t&=&\beta_{0,t}+\beta_{1,t}JPM_t+\beta_{2,t}VIX_t+\beta_{3,t} ProdOPEP_t+\beta_{4,t} DemPet_t+\beta_{5,t} TBILL10_t+\beta_{6,t} TBILL1_t+\epsilon_t\\
+  \beta_{j,t}t&=&\beta_{j,t-1}+\omega_t
+\end{eqnarray}
+
+donde $\epsilon_t \sim N(0,V^{-1})$ y $\omega_t \sim N(0,W^{-1})$. Como distribución inicial de los coeficientes $\beta_j$ se utiliza una normal no informativa; esto es $\beta_{j,0}\sim N(0,0.001)$ con $j=0,1,\cdots,6$. Por su parte, como distribución inicial para $\epsilon_0$ y $\omega_0$ se utilizan distribuciones gamma no informativas; es decir $\epsilon_0\sim gamma(0.1,0.1)$ y $\omega_0\sim gamma(0.1,0.1)$. La estimación del modelo se realizó utlizando JAGS en R. Se corrieron `r format(niter,scipen=999)` simulaciones para `r nchains` cadenas con un periodo de calentamiento de `r nburning` observaciones y sin adelgazamiento de la cadena (n.thin=1). En cuanto al ajuste del modelo, éste tuvo un valor $DIC=$ `r format(out_dinam.dic,scipen=999)` y una pseudo-$R^2=$ `r format(round(pseudoR2_dinam,2),scipen=999)`, por lo que el modelo está capturando aproximadamente el `r round(pseudoR2_dinam,3)*100`% de la varianza de los datos.
+
+```{r Resumen_GLM_dinam, cache=TRUE, dependson=c('GLM_Dinamico'), eval=FALSE, include=FALSE}
+#Tabla resumen
+out_dinam.sum.t_alpha_tabla<-xtable(out_dinam.sum.t_alpha,
+                              caption='Interceptos Estimados para el Modelo Dinámico',
+                              label='tabla:coef_mod_dinam')
+align(out_dinam.sum.t_alpha_tabla)<-'l|rrrrrr'
+print(out_dinam.sum.t_alpha_tabla,comment=FALSE,caption.placement = 'top')
+out_dinam.sum.t_beta_tabla<-xtable(out_dinam.sum.t_beta,
+                              caption='Coeficientes Estimados para el Modelo Dinámico',
+                              label='tabla:coef_mod_dinam')
+align(out_dinam.sum.t_beta_tabla)<-'l|rrrrrr'
+print(out_dinam.sum.t_beta_tabla,comment=FALSE,caption.placement = 'top')
+```
+
+La figura \ref{fig:plotRegresores_Dinam} muestra el valor observado, el valor pronosticado y los intervalos de predicción para cada uno de los regresores vs el precio del WTI. Se puede notar que la variabilidad en todos los regresores para la mayoría de las observaciones ahora es mínima y que prácticamente todas las predicciones coinciden con los valores observados. Esto podría estar hablando de problemas de sobre ajuste en el modelo o de problemas numéricos en JAGS. 
+
+```{r PlotRegresores_Dinam, cache=TRUE, dependson=c('GLM_Dinamico'), fig.pos='H', fig.width=12,fig.height=10,fig.cap='\\label{fig:plotRegresores_Dinam}Regresores vs WTI: Modelo \\eqref{eq:mod_dinam}'}
+#Predictions
+par(mfrow=c(3,2))
+# JPM_Dollar_Index vs. WTI
+plot_RegvsWTI(x.name='JPM_Dollar_Index',out.yp=out_dinam.yp,pos_leg='topleft')
+# VIX_Index vs. WTI
+plot_RegvsWTI(x.name='VIX_Index',out.yp=out_dinam.yp,pos_leg='topleft')
+# OPEP_TOTPROD vs. WTI
+plot_RegvsWTI(x.name='OPEP_TOTPROD',out.yp=out_dinam.yp,pos_leg='topleft')
+# OPEP_TOTDEM vs. WTI
+plot_RegvsWTI(x.name='OPEP_TOTDEM',out.yp=out_dinam.yp,pos_leg='topleft')
+# TBILL_10YR vs. WTI
+plot_RegvsWTI(x.name='TBILL_10YR',out.yp=out_dinam.yp,pos_leg='topright')
+# TBILL_1YR vs. WTI
+plot_RegvsWTI(x.name='TBILL_1YR',out.yp=out_dinam.yp,pos_leg='topright')
+```
+
+La figura \ref{fig:tsWTI_Dinam} muestra la serie de tiempo observada para el precio del WTI, los valores pronosticados y el pronóstico para el tercer trimestre del 2018 junto con sus intervalos de predicción.  Efectivamente, el modelo está sobreajustando a los datos. Este replica de manera exacta la evolución del precio del WTI a lo largo de la muestra y el ancho del intervalo de predicción es mínimo. En contraste, la predicción para el tercer trimestre del 2018 es muy mala y los intervalos de predicción muy anchos ya que el modelo no es capaz de generalizar los patrones importantes. 
+
+```{r tsWTI_Dinam, cache=TRUE, dependson=c('GLM_Dinamico'), fig.pos='H', fig.width=12,fig.height=6,fig.cap='\\label{fig:tsWTI_Dinam}Ajuste y Predicción: Modelo \\eqref{eq:mod_dinam}'}
+#t vs y
+par(mfrow=c(1,1))
+plot_tsWTI(out.yp=out_dinam.yp,pos_leg='topleft')
+```
+
+Por último, la figura \ref{fig:tsBetas_Dinam} muestra la serie de tiempo de los coeficientes estimados en el modelo. Cabe destacar que en este modelos, ninguno de los coeficientes salen significativos en ningún momento del tiempo. Esto se puede apreciar en el hecho de que la serie de tiempo de la mayoría de los coeficientes es plana, salvo con unos pequeños picos en la crisis del 2008 para los primeros cuatro regresores. 
+
+```{r tsBetas_Dinam, cache=TRUE, dependson=c('GLM_Dinamico'), message=FALSE, warning=FALSE, fig.pos='H', fig.width=12,fig.height=10,fig.cap='Coeficientes Estimados: Modelo \\eqref{eq:mod_dinam}'}
+#betas
+par(mfrow=c(3,2))
+plot_beta_dinam<-plot_beta(out.beta=out_dinam.beta)
+aux<-lapply(1:6,plot_beta_dinam)
+```
