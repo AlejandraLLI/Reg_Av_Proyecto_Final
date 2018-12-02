@@ -23,10 +23,13 @@ plot_ts<-function(datos,Fechas){
          main=var.name)
 
     
+    rect(xleft=match("ene-08",Fecha),ybottom=par("usr")[3],xright=match("dic-09",Fecha),ytop=par("usr")[4],col='#3333334D',border=NA)
     rect(xleft=match("abr-14",Fecha),ybottom=par("usr")[3],xright=match("ene-16",Fecha),ytop=par("usr")[4],col='#3333334D',border=NA)
- 
+    
     mtext(paste("(",unidades,")",sep=''), side=3,line=0,cex=0.8)
-    axis(1,at=seq(1,nobs,6),labels=Fechas[seq(1,nobs,6)],las=2)
+    
+    axis(1,at=seq(1,nobs,6),labels=Fecha[seq(1,nobs,6)],las=2)
+    # axis(1,at=c(seq(1,nobs,6),(n-m):n),labels=Fechas[c(seq(1,nobs,6),(n-m):n)],las=2)
     
     abline(h=seq(ymin,ymax,ceiling((ymax-ymin)/10)),lty=2,lwd=1,col='gray50')
   }
@@ -88,6 +91,7 @@ plot_tsWTI<-function(out.yp,pos_leg){
   
   plot(1:n,datos$WTI,type="l",lwd=3,lty=1,col="grey50",xaxt='n',ylim=c(ymin,ymax),xlim=c(xmin,xmax),xlab='',ylab='WTI') # Observado
   
+  rect(xleft=match("ene-08",Fecha),ybottom=par("usr")[3],xright=match("dic-09",Fecha),ytop=par("usr")[4],col='#3333334D',border=NA)
   rect(xleft=match("abr-14",Fecha),ybottom=par("usr")[3],xright=match("ene-16",Fecha),ytop=par("usr")[4],col='#3333334D',border=NA)
   
   lines(1:n,c(out.yp[1:(n-m+1),1],rep(NA,m-1)),lty=1,lwd=2,col='firebrick1') # Ajustado
@@ -99,6 +103,8 @@ plot_tsWTI<-function(out.yp,pos_leg){
   lines(1:n,c(rep(NA,n-m),out.yp[(n-m+1):n,7]),lty=1,lwd=2,col='royalblue1') # IP Upper
   
   axis(1,at=seq(1,n,6),labels=Fecha[seq(1,n,6)],las=2)
+  # axis(1,at=c(seq(1,nobs,6),(n-m):n),labels=Fechas[c(seq(1,nobs,6),(n-m):n)],las=2)
+
   legend(pos_leg,legend=c('Observado','Ajustado','Pronosticado'),lty=c(1,2,1),lwd=c(2,1,2),col=c('grey50','firebrick1','royalblue1'))
 }
 
@@ -127,6 +133,7 @@ plot_beta<-function(out.beta){
          xlab='',ylab=name.y,
          main=paste('Serie de tiempo del coeficiente estimado para ', name.y,sep="")) # Estimado (Media)
     
+    rect(xleft=match("ene-08",Fecha),ybottom=par("usr")[3],xright=match("dic-09",Fecha),ytop=par("usr")[4],col='#3333334D',border=NA)
     rect(xleft=match("abr-14",Fecha),ybottom=par("usr")[3],xright=match("ene-16",Fecha),ytop=par("usr")[4],col='#3333334D',border=NA)
     
     lines(out.beta[seq(x,nrow(out.beta),k),3],lty=2,lwd=2,col='olivedrab') # IP inf
@@ -134,6 +141,7 @@ plot_beta<-function(out.beta){
     lines(out.beta[seq(x,nrow(out.beta),k),7],lty=2,lwd=2,col='olivedrab') # IP sup
     
     axis(1,at=seq(1,n,6),labels=Fecha[seq(1,n,6)],las=2)
+    # axis(1,at=c(seq(1,nobs,6),(n-m):n),labels=Fechas[c(seq(1,nobs,6),(n-m):n)],las=2)
     
     legend('topright',legend=c('Media','Banda Conf. 95%'),lty=c(1,2),lwd=2,col=c('darkgoldenrod1','olivedrab'))
     

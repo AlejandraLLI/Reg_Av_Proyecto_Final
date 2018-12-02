@@ -39,18 +39,17 @@ out_dinam.sum<-mod_dinam.sim$BUGSoutput$summary
 # Modes
 modas_dinam_alpha<-apply(out_dinam$alpha,2,getmode)
 modas_dinam_beta<-unlist(lapply(1:n,function(x){apply(out_dinam$beta[,,x],2,getmode)}))
-prob_dinam_alpha<-unlist(lapply(1:n,function(x){apply(out_dinam$alpha[,,x],2,prob)}))
-prob_dinam_beta<-unlist(lapply(1:n,function(x){apply(out_dinam$beta[,,x],2,prob)}))
+probs_dinam_beta<-unlist(lapply(1:n,function(x){apply(out_dinam$beta[,,x],2,prob)}))
 
 # Summary
-out_dinam.sum.t_alpha<-cbind(out_dinam.sum[grep("alpha",rownames(out_dinam.sum)),c(1,3,5,7)],modas_dinam_alpha,prob_dinam_alpha)
-# out_dinam.sum.t_alpha<-cbind(out_dinam.sum.t_alpha,apply(out_dinam$alpha,2,prob))
+out_dinam.sum.t_alpha<-cbind(out_dinam.sum[grep("alpha",rownames(out_dinam.sum)),c(1,3,5,7)],modas_dinam_alpha)
+out_dinam.sum.t_alpha<-cbind(out_dinam.sum.t_alpha,apply(out_dinam$alpha,2,prob))
 out_dinam.sum.t_alpha<-out_dinam.sum.t_alpha[,c(1,3,5,2,4,6)]
 colnames(out_dinam.sum.t_alpha)<-c("Media","Mediana","Moda","2.5%","97.5%","Prob.")
 rownames(out_dinam.sum.t_alpha)<-paste('Intercepto t=',1:n,sep='_')
 
 
-out_dinam.sum.t_beta<-cbind(out_dinam.sum[grep("beta",rownames(out_dinam.sum)),c(1,3,5,7)],modas_dinam_beta,prob_dinam_beta)
+out_dinam.sum.t_beta<-cbind(out_dinam.sum[grep("beta",rownames(out_dinam.sum)),c(1,3,5,7)],modas_dinam_beta,probs_dinam_beta)
 # out_dinam.sum.t_beta<-cbind(out_dinam.sum.t_beta,apply(out_dinam$beta,2,prob))
 out_dinam.sum.t_beta<-out_dinam.sum.t_beta[,c(1,3,5,2,4,6)]
 colnames(out_dinam.sum.t_beta)<-c("Media","Mediana","Moda","2.5%","97.5%","Prob.")
@@ -68,5 +67,6 @@ out_dinam.alpha<-out_dinam.sum[grep("alpha",rownames(out_dinam.sum)),]
 #-Betas-
 out_dinam.beta<-out_dinam.sum[grep("beta",rownames(out_dinam.sum)),]
 
-# -Pseudo R2-
-pseudoR2_dinam<-pseudoR2(out_dinam.yp)
+#-PseudoR2-
+pseudoR2_dinam<-pseudoR2(out.yp=out_dinam.yp)
+
