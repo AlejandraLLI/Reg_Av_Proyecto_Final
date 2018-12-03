@@ -48,3 +48,6 @@ out_dinam_std_suav_10.yp<-out_dinam_std_suav_10.sum[grep("yp",rownames(out_dinam
 
 #-Betas-
 out_dinam_std_suav_10.beta<-out_dinam_std_suav_10.sum[grep("beta",rownames(out_dinam_std_suav_10.sum)),]
+
+# -pseudoR2-
+pseudoR2_dinam_std_suav_10<-pseudoR2(out.yp=out_dinam_std_suav_10.yp)
