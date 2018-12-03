@@ -23,7 +23,7 @@ plot_ts<-function(datos,Fechas){
          main=var.name)
 
     
-    rect(xleft=match("ene-08",Fecha),ybottom=par("usr")[3],xright=match("dic-09",Fecha),ytop=par("usr")[4],col='#3333334D',border=NA)
+    rect(xleft=match("ene-08",Fecha),ybottom=par("usr")[3],xright=match("jun-09",Fecha),ytop=par("usr")[4],col='#3333334D',border=NA)
     rect(xleft=match("abr-14",Fecha),ybottom=par("usr")[3],xright=match("ene-16",Fecha),ytop=par("usr")[4],col='#3333334D',border=NA)
     
     mtext(paste("(",unidades,")",sep=''), side=3,line=0,cex=0.8)
@@ -91,7 +91,7 @@ plot_tsWTI<-function(out.yp,pos_leg){
   
   plot(1:n,datos$WTI,type="l",lwd=3,lty=1,col="grey50",xaxt='n',ylim=c(ymin,ymax),xlim=c(xmin,xmax),xlab='',ylab='WTI') # Observado
   
-  rect(xleft=match("ene-08",Fecha),ybottom=par("usr")[3],xright=match("dic-09",Fecha),ytop=par("usr")[4],col='#3333334D',border=NA)
+  rect(xleft=match("ene-08",Fecha),ybottom=par("usr")[3],xright=match("jun-09",Fecha),ytop=par("usr")[4],col='#3333334D',border=NA)
   rect(xleft=match("abr-14",Fecha),ybottom=par("usr")[3],xright=match("ene-16",Fecha),ytop=par("usr")[4],col='#3333334D',border=NA)
   
   lines(1:n,c(out.yp[1:(n-m+1),1],rep(NA,m-1)),lty=1,lwd=2,col='firebrick1') # Ajustado
@@ -133,7 +133,7 @@ plot_beta<-function(out.beta){
          xlab='',ylab=name.y,
          main=paste('Serie de tiempo del coeficiente estimado para ', name.y,sep="")) # Estimado (Media)
     
-    rect(xleft=match("ene-08",Fecha),ybottom=par("usr")[3],xright=match("dic-09",Fecha),ytop=par("usr")[4],col='#3333334D',border=NA)
+    rect(xleft=match("ene-08",Fecha),ybottom=par("usr")[3],xright=match("jun-09",Fecha),ytop=par("usr")[4],col='#3333334D',border=NA)
     rect(xleft=match("abr-14",Fecha),ybottom=par("usr")[3],xright=match("ene-16",Fecha),ytop=par("usr")[4],col='#3333334D',border=NA)
     
     lines(out.beta[seq(x,nrow(out.beta),k),3],lty=2,lwd=2,col='olivedrab') # IP inf

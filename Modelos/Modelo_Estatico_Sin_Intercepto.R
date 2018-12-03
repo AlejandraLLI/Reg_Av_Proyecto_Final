@@ -52,3 +52,6 @@ out_estat_transf.dic<-mod_estat_transf.sim$BUGSoutput$DIC
 
 #-Predictions-
 out_estat_transf.yp<-out_estat_transf.sum[grep("yp",rownames(out_estat_transf.sum)),]
+
+# -pseudoR2-
+pseudoR2_estat_transf<-pseudoR2(out.yp=out_estat_transf.yp)

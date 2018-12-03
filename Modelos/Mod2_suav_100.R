@@ -26,11 +26,14 @@ out_dinam_transf_suav_100<-mod_dinam_transf_suav_100.sim$BUGSoutput$sims.list
 out_dinam_transf_suav_100.sum<-mod_dinam_transf_suav_100.sim$BUGSoutput$summary
 # Modes
 modas_dinam_transf_suav_100_beta<-unlist(lapply(1:n,function(x){apply(out_dinam_transf_suav_100$beta[,,x],2,getmode)}))
+prob_dinam_transf_suav_100_beta<-unlist(lapply(1:n,function(x){apply(out_dinam_transf_suav_100$beta[,,x],2,prob)}))
 
 # Summary
 
-out_dinam_transf_suav_100.sum.t_beta<-cbind(out_dinam_transf_suav_100.sum[grep("beta",rownames(out_dinam_transf_suav_100.sum)),c(1,3,5,7)],modas_dinam_transf_suav_100_beta)
-out_dinam_transf_suav_100.sum.t_beta<-cbind(out_dinam_transf_suav_100.sum.t_beta,apply(out_dinam_transf_suav_100$beta,2,prob))
+out_dinam_transf_suav_100.sum.t_beta<-cbind(out_dinam_transf_suav_100.sum[grep("beta",rownames(out_dinam_transf_suav_100.sum)),c(1,3,5,7)],
+                                            modas_dinam_transf_suav_100_beta,
+                                            prob_dinam_transf_suav_100_beta)
+# out_dinam_transf_suav_100.sum.t_beta<-cbind(out_dinam_transf_suav_100.sum.t_beta,apply(out_dinam_transf_suav_100$beta,2,prob))
 out_dinam_transf_suav_100.sum.t_beta<-out_dinam_transf_suav_100.sum.t_beta[,c(1,3,5,2,4,6)]
 colnames(out_dinam_transf_suav_100.sum.t_beta)<-c("Media","Mediana","Moda","2.5%","97.5%","Prob.")
 rownames(out_dinam_transf_suav_100.sum.t_beta)<-paste(rep(c('JPM Dollar Ind.','VIX Ind','Prod. OPEP','Dem. OPEP','T-Bill 10YR','T-Bill 1YR'),n),rep(1:n,each=k),sep=' t=')
@@ -43,3 +46,6 @@ out_dinam_transf_suav_100.yp<-out_dinam_transf_suav_100.sum[grep("yp",rownames(o
 
 #-Betas-
 out_dinam_transf_suav_100.beta<-out_dinam_transf_suav_100.sum[grep("beta",rownames(out_dinam_transf_suav_100.sum)),]
+
+#-pseudoR2-
+pseudoR2_out_dinam_transf_suav_100<-pseudoR2(out.yp = out_dinam_transf_suav_100.yp)
