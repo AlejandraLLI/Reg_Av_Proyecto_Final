@@ -39,6 +39,8 @@ out_dinam_std.sum<-mod_dinam_std.sim$BUGSoutput$summary
 # Modes
 modas_dinam_std_alpha<-apply(out_dinam_std$alpha,2,getmode)
 modas_dinam_std_beta<-unlist(lapply(1:n,function(x){apply(out_dinam_std$beta[,,x],2,getmode)}))
+probs_dinam_std_beta<-unlist(lapply(1:n,function(x){apply(out_dinam_std$beta[,,x],2,prob)}))
+
 
 # Summary
 out_dinam_std.sum.t_alpha<-cbind(out_dinam_std.sum[grep("alpha",rownames(out_dinam_std.sum)),c(1,3,5,7)],modas_dinam_std_alpha)
@@ -48,8 +50,8 @@ colnames(out_dinam_std.sum.t_alpha)<-c("Media","Mediana","Moda","2.5%","97.5%","
 rownames(out_dinam_std.sum.t_alpha)<-paste('Intercepto t=',1:n,sep='_')
 
 
-out_dinam_std.sum.t_beta<-cbind(out_dinam_std.sum[grep("beta",rownames(out_dinam_std.sum)),c(1,3,5,7)],modas_dinam_std_beta)
-out_dinam_std.sum.t_beta<-cbind(out_dinam_std.sum.t_beta,apply(out_dinam_std$beta,2,prob))
+out_dinam_std.sum.t_beta<-cbind(out_dinam_std.sum[grep("beta",rownames(out_dinam_std.sum)),c(1,3,5,7)],modas_dinam_std_beta, probs_dinam_std_beta)
+# out_dinam_std.sum.t_beta<-cbind(out_dinam_std.sum.t_beta,apply(out_dinam_std$beta,2,prob))
 out_dinam_std.sum.t_beta<-out_dinam_std.sum.t_beta[,c(1,3,5,2,4,6)]
 colnames(out_dinam_std.sum.t_beta)<-c("Media","Mediana","Moda","2.5%","97.5%","Prob.")
 rownames(out_dinam_std.sum.t_beta)<-paste(rep(c('JPM Dollar Ind.','VIX Ind','Prod. OPEP','Dem. OPEP','T-Bill 10YR','T-Bill 1YR'),n),rep(1:n,each=k),sep=' t=')
@@ -65,3 +67,7 @@ out_dinam_std.alpha<-out_dinam_std.sum[grep("alpha",rownames(out_dinam_std.sum))
 
 #-Betas-
 out_dinam_std.beta<-out_dinam_std.sum[grep("beta",rownames(out_dinam_std.sum)),]
+
+#-PseudoR2-
+pseudoR2_dinam_std<-pseudoR2(out.yp=out_dinam_std.yp)
+
