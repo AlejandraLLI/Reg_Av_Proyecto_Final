@@ -21,7 +21,7 @@ knitr::opts_chunk$set(echo = FALSE)
 
 ```{r setWD}
 # Ruta ALE
-setwd("~/Documents/ITAM_Maestria/03_Otono_2018/01_Regresion_Avanzada/04_Examenes/Examen_Final")
+#setwd("~/Documents/ITAM_Maestria/03_Otono_2018/01_Regresion_Avanzada/04_Examenes/Examen_Final")
 
 # Ruta Banxico
 # setwd("//client/E$/ITAM_Maestria/03_Otono_2018/01_Regresion_Avanzada/05_Proyecto_Final")
@@ -571,5 +571,371 @@ Por último, la figura \ref{fig:tsBetas_Dinam_suav_100000} muestra la serie de t
 \newpage
 
 ## Datos Estandarizados \label{sec:Estandarizados}
+
+En esta sección se utilizan los datos estandarizados.
+
+```{r datos_Std}
+# Seleccioanmos el set de datos a usar
+datos<-datos_1_estand
+
+# Extraemos las fechas
+Fecha<-datos$Fecha
+
+# Eliminamos la fecha de los datos
+datos <- select(datos, -Fecha)
+
+# Función para graficar series de tiempo con estos datos.
+plot_ts_datos<-plot_ts(datos,Fecha)
+
+```
+
+### Modelo de Regresión Clásico
+
+Como primer modelo, y con fines de comparación, se  estima una regresión lineal múltiple (con enfoque frecuentista) ya que, en la mayoría de los casos, ésta sería la primer opción a utilizar. El modelo a estimar se define como
+\begin{equation}\label{eq:RegLin_Std}
+WTI_t=\beta_0+\beta_1JPM_t+\beta_2VIX_t+\beta_3 ProdOPEP_t+\beta_4 DemPet_t+\beta_5 TBILL10_t+\beta_6 TBILL1_t+\epsilon_t
+\end{equation}
+
+```{r RegLin_Std,results='asis', cache=TRUE,  dependson=c('SetsDatos','Params')}
+
+# Modelo de regresón con enfoque clásico
+modelo_RegLin_Std <- lm(data = datos, formula = WTI ~ .)
+
+tabla_mod_RegLin_Std<-summary(modelo_RegLin_Std)$coefficients
+rownames(tabla_mod_RegLin_Std)<-c('Intercepto','JPM Dollar Ind.','VIX Ind.','Prod. OPEP','Dem. OPEP', 'TBILL-1OYR','TBILL-1YR')
+colnames(tabla_mod_RegLin_Std)<-c('Estimación','Desv. Est.','Valor t','Valor-p')
+
+tabla_mod_RegLin_Std<-xtable(tabla_mod_RegLin_Std,
+                         caption='Coeficientes Estimados para el Modelo  \\eqref{eq:RegLin_Std}',
+                         label='tabla:coef_mod_RegLin_Std')
+
+align(tabla_mod_RegLin_Std)<-'l|rrrr'
+print(tabla_mod_RegLin_Std,comment=FALSE,caption.placement = 'top')
+
+```
+
+En la tabla \ref{tabla:coef_mod_RegLin_Std}, se puede apreciar que con los datos estandarizados, las variables explicativas significativas se reducen. En este caso, JPM_Dollar_Index, OPEP_TOTPROD, OPEP_TOTDEM y TBILL_1YR son  significativas con un nivel $\alpha$ de $0.05$.
+En cuanto a los regresores que sí son significativos, el signo de los coeficientes coincide con lo esperado a partir de la matriz de correlaciones. En este sentido, ante un incremento de una unidad en el JPM Dollar Index estandarizado, el precio estandarizado del WTI se incrementaría en `r round(coef(summary(modelo_RegLin_Std))[2,1],2)` dólares por barril; un incremento de una unidad en la producción de la OPEP estandarizada llevaría a un incremento del precio estandarizado del WTI de  `r round(coef(summary(modelo_RegLin_Std))[4,1],2)` dólares por barril, un incremento de una unidad en la demanda estandarizada de la OPEP estaría asociado a un incremento en el precio estandarizado del WTI de `r round(coef(summary(modelo_RegLin_Std))[5,1],2)` dólares por barril y un incremento de un punto porcentual estandarizado en la tasa de corto plazo disminuiría el precio estandarizado del WTI en `r round(coef(summary(modelo_RegLin_Std))[7,1],2)` dólares por barril. 
+En este caso, al estar los datos estandarizados, los coeficientes son comparables entre sí y nos dan una idea de la importancia relativa de cada variable independiente. Se puede observar que la variable significativa con más importancia (peso) es el JPM_Dollar_Index y la variable significativa con menor importancia es  OPEP_TOTPROD. 
+Este modelo tiene un coeficiente de $R^2=$ `r round(summary(modelo_RegLin_Std)$r.squared,2)`; es decir, el modelo explica un `r round(summary(modelo_RegLin_Std)$r.squared,3)*100` % de la varianza de los datos. Este valor servirá para comparar con el valor de la pseudo $R^2$ de los modelos bayesianos.
+
+### GLM Estático
+
+Equivalente a un modelo de regresión lineal normal.
+
+```{r GLM_Estatico_Std,cache=TRUE, dependson=c('SetsDatos','Params'), message=FALSE, warning=FALSE, eval=TRUE, include=FALSE}
+source('Modelos/Modelo_Estatico_Std.R')
+```
+
+El segundo modelo a estimar es un modelo lineal generalizado normal estático; de hecho, este modelo coincide con un Modelo de Regresión Normal Lineal. El modelo está definido como:
+\begin{eqnarray}\label{eq:mod_estatico_Std}\nonumber
+  WTI_t&\sim& N(\mu_t,\tau_i)\\\nonumber
+  \mu_t&=&\beta_0+\beta_1JPM_t+\beta_2VIX_t+\beta_3 ProdOPEP_t+\beta_4 DemPet_t+\beta_5 TBILL10_t+\beta_6 TBILL1_t\\
+  \tau_i&=&\tau
+\end{eqnarray}
+
+Como distribución inicial de los coeficientes $\beta_j$ se utiliza una normal no informativa; esto es $\beta_j\sim N(0,0.001)$ con $j=0,1,\cdots,6$. La estimación del modelo se realizó utlizando JAGS en R. Se corrieron `r format(niter,scipen=999)` simulaciones para `r nchains` cadenas con un periodo de calentamiento de `r nburning` observaciones y sin adelgazamiento de la cadena (n.thin=1). En cuanto al ajuste del modelo, éste tuvo un valor $DIC=$ `r format(out_estat_std.dic,scipen=999)` y una pseudo-$R^2=$ `r format(round(pseudoR2_estat_std,2),scipen=999)`, por lo que el modelo está capturando aproximadamente el `r round(pseudoR2_estat_std,3)*100`% de la varianza de los datos.
+
+```{r Resumen_GLM_estatico_std,cache=TRUE, dependson=c('GLM_Estatico_Std'), results='asis'}
+#Tabla resumen
+out_estat_std.sum.t_tabla<-xtable(out_estat_std.sum.t,
+                              caption='Coeficientes Estimados para el Modelo \\eqref{eq:mod_estatico_Std}',
+                              label='tabla:coef_mod_estat_std')
+align(out_estat_std.sum.t_tabla)<-'l|rrrrrr'
+print(out_estat_std.sum.t_tabla,comment=FALSE,caption.placement = 'top')
+```
+
+La tabla \ref{tabla:coef_mod_estat_std} muestra los coeficientes estimados para este modelo. Como estimadores puntuales se tienen la media (bajo pérdida cuadrática), la mediana (bajo pérdida absoluta) y la moda (bajo pérdida vecindad); además se incluye la estimación por intervalos. Como se puede apreciar, los esitmadores puntuales de la media y la mediana son muy parecidos para todos los coeficientes; mientras que el estimador puntual de la moda es el que más difiere en todos los casos. 
+Todos los regresores son significativos --- y sus respectivos intervalos de probabilidad no contienen al cero --- salvo los correspondientes al intercepto, al VIX index, y a la tasa de largo plazo. Estos resultados coinciden con los resultados del modelo de regresión lineal clásico. 
+
+De esta manera, para los coeficientes significativos se tiene que un incremento de una unidad estandarizada en el índice del dólar (todo lo demás constante) estará relacionado con un incremento de `r abs(round(out_estat_std.sum.t[2,1],2))` dólares por barril en el precio del WTI estandarizado; un incremento de una unidad estandarizada la producción de la OPEP conlleva a un incremento de `r abs(round(out_estat_std.sum.t[4,1],2))` dólares por barril en el precio estandarizado del petróleo, un incremento de una unidad en la demanda estandarizada del petróleo incrementará su precio estandarizado en `r abs(round(out_estat_std.sum.t[5,1],2))` dólares por barril y un incremento de un punto porcentual en la tasa de corto plazo estará relacionado con una disminución de `r abs(round(out_estat_std.sum.t[7,1],2))` dólares por barril en el precio estandarizado del WTI. 
+
+```{r PlotRegresores_estatico_std, cache=TRUE, dependson=c('GLM_Estatico_Std') fig.width=12,fig.height=8,fig.cap='\\label{fig:Regresores_Estatico_Std}Regresores vs WTI: Modelo \\eqref{eq:mod_estatico_Std}'}
+#Predictions
+par(mfrow=c(3,2))
+# JPM_Dollar_Index vs. WTI
+plot_RegvsWTI(x.name='JPM_Dollar_Index',out.yp=out_estat_std.yp,pos_leg='topleft')
+# VIX_Index vs. WTI
+plot_RegvsWTI(x.name='VIX_Index',out.yp=out_estat_std.yp,pos_leg='topleft')
+# OPEP_TOTPROD vs. WTI
+plot_RegvsWTI(x.name='OPEP_TOTPROD',out.yp=out_estat_std.yp,pos_leg='topleft')
+# OPEP_TOTDEM vs. WTI
+plot_RegvsWTI(x.name='OPEP_TOTDEM',out.yp=out_estat_std.yp,pos_leg='topleft')
+# TBILL_10YR vs. WTI
+plot_RegvsWTI(x.name='TBILL_10YR',out.yp=out_estat_std.yp,pos_leg='topright')
+# TBILL_1YR vs. WTI
+plot_RegvsWTI(x.name='TBILL_1YR',out.yp=out_estat_std.yp,pos_leg='topright')
+```
+
+La figura \ref{fig:Regresores_Estatico_Std} muestra el valor observado, el valor pronosticado y los intervalos de predicción para cada uno de los regresores vs el precio del WTI. Se puede notar que la variabilidad en todos los regresores es muy alta y que muchas observaciones quedan fuera de las bandas de predicción. 
+
+```{r tsWTI_estatico_std,cache=TRUE, dependson=c('GLM_Estatico_Std'), fig.width=12,fig.height=6,fig.cap='\\label{fig:tsWTI_Estat_Std}Ajuste y Predicción: Modelo \\eqref{eq:mod_estatico_Std}'}
+#t vs y
+par(mfrow=c(1,1))
+plot_tsWTI(out.yp=out_estat_std.yp,pos_leg='topleft')
+```
+
+Por último, la figura \ref{fig:tsWTI_Estat_Std} muestra la serie de tiempo observada para el precio del WTI, los valores pronosticados y el pronóstico para el tercer trimestre del 2018 junto con sus intervalos de predicción.  
+En este caso se puede observar que el modelo no es capaz de capturar la forma correcta de la evolución del precio del WTI e introduce algunas sobrestimaciones y subestimaciones de los valores observados. 
+
+### GLM Dinámico
+
+```{r GLM_Dinamico_Std,cache=TRUE, dependson=c('SetsDatos','Params'), message=FALSE, warning=FALSE, eval=TRUE, include=FALSE}
+source('Modelos/Modelo_Dinamico_Std.R')
+```
+
+Dado que el modelo estático parece no replicar correctamente la dinámica del WTI en algunos momentos del tiempo, como tercer modelo se estima un modelo lineal generalizado normal dinámico definido como:
+\begin{eqnarray}\label{eq:mod_dinam_Std}\nonumber
+  WTI_t&=&\beta_{0,t}+\beta_{1,t}JPM_t+\beta_{2,t}VIX_t+\beta_{3,t} ProdOPEP_t+\beta_{4,t} DemPet_t+\beta_{5,t} TBILL10_t+\beta_{6,t} TBILL1_t+\epsilon_t\\
+  \beta_{j,t}t&=&\beta_{j,t-1}+\omega_t
+\end{eqnarray}
+
+donde $\epsilon_t \sim N(0,V^{-1})$ y $\omega_t \sim N(0,W^{-1})$. Como distribución inicial de los coeficientes $\beta_j$ se utiliza una normal no informativa; esto es $\beta_{j,0}\sim N(0,0.001)$ con $j=0,1,\cdots,6$. Por su parte, como distribución inicial para $\epsilon_0$ y $\omega_0$ se utilizan distribuciones gamma no informativas; es decir $\epsilon_0\sim gamma(0.1,0.1)$ y $\omega_0\sim gamma(0.1,0.1)$. La estimación del modelo se realizó utlizando JAGS en R. Se corrieron `r format(niter,scipen=999)` simulaciones para `r nchains` cadenas con un periodo de calentamiento de `r nburning` observaciones y sin adelgazamiento de la cadena (n.thin=1). En cuanto al ajuste del modelo, éste tuvo un valor $DIC=$ `r format(out_dinam_std.dic,scipen=999)` y una pseudo-$R^2=$ `r format(round(pseudoR2_dinam_std,2),scipen=999)`, por lo que el modelo está capturando aproximadamente el `r round(pseudoR2_dinam_std,3)*100`% de la varianza de los datos.
+
+```{r Resumen_GLM_dinam_std,cache=TRUE, dependson=c('GLM_Dinamico_Std'), eval=FALSE, include=FALSE}
+#Tabla resumen
+out_dinam_std.sum.t_alpha_tabla<-xtable(out_dinam_std.sum.t_alpha,
+                              caption='Interceptos Estimados para el Modelo Dinámico',
+                              label='tabla:coef_mod_dinam_std')
+align(out_dinam_std.sum.t_alpha_tabla)<-'l|rrrrrr'
+print(out_dinam_std.sum.t_alpha_tabla,comment=FALSE,caption.placement = 'top')
+out_dinam_std.sum.t_beta_tabla<-xtable(out_dinam_std.sum.t_beta,
+                              caption='Coeficientes Estimados para el Modelo Dinámico',
+                              label='tabla:coef_mod_dinam_std')
+align(out_dinam_std.sum.t_beta_tabla)<-'l|rrrrrr'
+print(out_dinam_std.sum.t_beta_tabla,comment=FALSE,caption.placement = 'top')
+```
+
+
+
+```{r PlotRegresores_dinam_std,cache=TRUE, dependson=c('GLM_Dinamico_Std'),  fig.pos='H', fig.width=12,fig.height=6,fig.cap='\\label{fig:plotRegresores_dinam_std}Regresores vs WTI: Modelo Dinámico'}
+#Predictions
+par(mfrow=c(3,2))
+# JPM_Dollar_Index vs. WTI
+plot_RegvsWTI(x.name='JPM_Dollar_Index',out.yp=out_dinam_std.yp,pos_leg='topleft')
+# VIX_Index vs. WTI
+plot_RegvsWTI(x.name='VIX_Index',out.yp=out_dinam_std.yp,pos_leg='topleft')
+# OPEP_TOTPROD vs. WTI
+plot_RegvsWTI(x.name='OPEP_TOTPROD',out.yp=out_dinam_std.yp,pos_leg='topleft')
+# OPEP_TOTDEM vs. WTI
+plot_RegvsWTI(x.name='OPEP_TOTDEM',out.yp=out_dinam_std.yp,pos_leg='topleft')
+# TBILL_10YR vs. WTI
+plot_RegvsWTI(x.name='TBILL_10YR',out.yp=out_dinam_std.yp,pos_leg='topright')
+# TBILL_1YR vs. WTI
+plot_RegvsWTI(x.name='TBILL_1YR',out.yp=out_dinam_std.yp,pos_leg='topright')
+```
+
+La figura \ref{fig:plotRegresores_dinam_std} muestra el valor observado, el valor pronosticado y los intervalos de predicción para cada uno de los regresores vs el precio del WTI. Se puede notar que la variabilidad en todos los regresores para la mayoría de las observaciones ahora es mínima en la mayoría de los casos y que prácticamente todas las predicciones coinciden con los valores observados. Esto podría estar hablando de problemas de sobre ajuste en el modelo. 
+
+```{r tsWTI_dinam_std,cache=TRUE, dependson=c('GLM_Dinamico_Std'), fig.pos='H', fig.width=12,fig.height=6,fig.cap='\\label{fig:tsWTI_Dinam_Std}Ajuste y Predicción: Modelo \\eqref{eq:mod_dinam_Std}'}
+#t vs y
+par(mfrow=c(1,1))
+plot_tsWTI(out.yp=out_dinam_std.yp,pos_leg='topleft')
+```
+La figura \ref{fig:tsWTI_Dinam_Std} muestra la serie de tiempo observada para el precio del WTI, los valores pronosticados y el pronóstico para el tercer trimestre del 2018 junto con sus intervalos de predicción.  
+En la figura se puede observar que el modelo está sobreajustando los datos ya que la línea de datos observados y la línea de datos predichos está sobrelapada casi perfectamente. Es decir, el modelo replica exactamente la evolución del precio del WTI a lo largo de la muestra y el intervalo de predicción se reduce significativamente. 
+En este caso, la predicción para el último trimestre del 2018 mejora bastante. Los intervalos de confianza aumentan significativamente ya que el modelo no tiene datos observados para ese último trimestre. Sin embargo, se puede observar que los datos predichos ya siguen las mismas tendencias que los datos reales y se acercan bastante. 
+
+```{r tsBetas_dinam_std,cache=TRUE, dependson=c('GLM_Dinamico_Std'), message=FALSE, warning=FALSE, fig.width=12,fig.height=8,fig.cap='\\label{fig:tsBetas_Dinam_Std}Coeficientes Estimados: Modelo  \\eqref{eq:mod_dinam_Std}'}
+#betas
+par(mfrow=c(3,2))
+plot_beta_dinam_std<-plot_beta(out.beta=out_dinam_std.beta)
+aux<-lapply(1:6,plot_beta_dinam_std)
+```
+
+Por último, la figura \ref{fig:tsBetas_Dinam_Std} muestra la serie de tiempo de los coeficientes estimados en el modelo. Cabe destacar que en este modelo, ninguno de los coeficientes salen significativos en ningún momento del tiempo. Esto se puede apreciar en el hecho de que la serie de tiempo de de todos los coeficientes incluye al cero. 
+
+### GLM Dinámico con Intercepto Estático y Suavizamiento ($\lambda=10$)
+
+```{r GLM_Dinamico_suav_10_Std,  cache=TRUE, dependson=c('SetsDatos','Params'), message=FALSE, warning=FALSE, eval=TRUE, include=FALSE}
+source('Modelos/Mod_suav_10_Std.R')
+```
+
+Dado que el modelo dinámico presenta sobre ajuste, los regresores no son signficativos y el DIC no tiene sentido respcto al modelo estático, como cuarto modelo se estima un modelo lineal generalizado normal dinámico con intrcepto estático y suavizamiento con valor de 10 definido como:
+\begin{eqnarray}\label{eq:mod_dinam_suav_10_Std}\nonumber
+  WTI_t&=&\beta_{0,t}+\beta_{1,t}JPM_t+\beta_{2,t}VIX_t+\beta_{3,t} ProdOPEP_t+\beta_{4,t} DemPet_t+\beta_{5,t} TBILL10_t+\beta_{6,t} TBILL1_t+\epsilon_t\\
+  \beta_{j,t}t&=&\beta_{j,t-1}+\omega_t\\
+  \omega_t&=&\lambda\epsilon_t
+\end{eqnarray}
+
+donde $\epsilon_t \sim N(0,V^{-1})$, $\omega_t \sim N(0,W^{-1})$ y $\lambda=10$. Como distribución inicial de los coeficientes $\beta_j$ se utiliza una normal no informativa; esto es $\beta_{j,0}\sim N(0,0.001)$ con $j=0,1,\cdots,6$. Por su parte, como distribución inicial para $\epsilon_0$ se utiliza una distribución gamma no informativa; es decir $\epsilon_0\sim gamma(0.1,0.1)$. La estimación del modelo se realizó utlizando JAGS en R. Se corrieron `r format(niter,scipen=999)` simulaciones para `r nchains` cadenas con un periodo de calentamiento de `r nburning` observaciones y sin adelgazamiento de la cadena (n.thin=1). En cuanto al ajuste del modelo, éste tuvo un valor $DIC=$ `r format(out_dinam_std_suav_10.dic,scipen=999)` y una pseudo-$R^2=$ `r format(round(pseudoR2_dinam_std_suav_10,2),scipen=999)`, por lo que el modelo está capturando aproximadamente el `r round(pseudoR2_dinam_std_suav_10,3)*100`% de la varianza de los datos.
+
+```{r Resumen_GLM_dinam_std_suav_10, cache=TRUE, dependson=c('GLM_Dinamico_suav_10_Std'), eval=FALSE, include=FALSE}
+#Tabla resumen
+out_dinam_std_suav_10.sum.t_beta_tabla<-xtable(out_dinam_std_suav_10.sum.t_beta,
+                              caption='Coeficientes Estimados para el Modelo Dinámico con lamba 10 y Datos Estandarizados',
+                              label='tabla:coef_mod_dinam_suav_10_std')
+align(out_dinam_std_suav_10.sum.t_beta_tabla)<-'l|rrrrrr'
+print(out_dinam_std_suav_10.sum.t_beta_tabla,comment=FALSE,caption.placement = 'top')
+```
+
+
+
+```{r PlotRegresores_dinam_std_suav10, cache=TRUE, dependson=c('GLM_Dinamico_suav_10_Std'),fig.width=12,fig.height=6,fig.cap='\\label{fig:PlotRgresroes_Dinam_suav10_Std}Regresores vs WTI: Modelo \\eqref{eq:mod_dinam_suav_10_Std}'}
+#Predictions
+par(mfrow=c(3,2))
+# JPM_Dollar_Index vs. WTI
+plot_RegvsWTI(x.name='JPM_Dollar_Index',out.yp=out_dinam_std_suav_10.yp,pos_leg='topleft')
+# VIX_Index vs. WTI
+plot_RegvsWTI(x.name='VIX_Index',out.yp=out_dinam_std_suav_10.yp,pos_leg='topright')
+# OPEP_TOTPROD vs. WTI
+plot_RegvsWTI(x.name='OPEP_TOTPROD',out.yp=out_dinam_std_suav_10.yp,pos_leg='topleft')
+# OPEP_TOTDEM vs. WTI
+plot_RegvsWTI(x.name='OPEP_TOTDEM',out.yp=out_dinam_std_suav_10.yp,pos_leg='topleft')
+# TBILL_10YR vs. WTI
+plot_RegvsWTI(x.name='TBILL_10YR',out.yp=out_dinam_std_suav_10.yp,pos_leg='topright')
+# TBILL_1YR vs. WTI
+plot_RegvsWTI(x.name='TBILL_1YR',out.yp=out_dinam_std_suav_10.yp,pos_leg='topright')
+```
+
+La figura \ref{fig:PlotRgresroes_Dinam_suav10_Std} muestra el valor observado, el valor pronosticado y los intervalos de predicción para cada uno de los regresores vs el precio del WTI. Se puede notar que la variabilidad en todos los regresores para la mayoría de las observaciones sigue siendo mínima y que prácticamente todas las predicciones coinciden con los valores observados. Esto podría estar hablando de problemas de sobre ajuste en el modelo o de problemas numéricos en JAGS por lo que el valor de $\lambda=10$ parece ser insuficiente. 
+
+```{r tsWTI_dinam_std_suav_10, cache=TRUE, dependson=c('GLM_Dinamico_suav_10_Std'), fig.width=12,fig.height=6,fig.cap='\\label{fig:tsWTI_Dinam_suav_10_Std}Ajuste y Predicción: Modelo \\eqref{eq:mod_dinam_suav_10_Std}'}
+#t vs y
+par(mfrow=c(1,1))
+plot_tsWTI(out.yp=out_dinam_std_suav_10.yp,pos_leg='topleft')
+```
+
+La figura \ref{fig:tsWTI_Dinam_suav_10_Std} muestra la serie de tiempo observada para el precio del WTI, los valores pronosticados y el pronóstico para el tercer trimestre del 2018 junto con sus intervalos de predicción.  E
+En la figura se puede observar que el ajuste ya no es perfecto como lo era en el modelo dinámico sin suavizamiento. En este caso, la línea de nuestras predicciones (roja) ya no se sobrelapa sobre los datos observados (línea gris) en todos los puntos del tiempo. Esto muestra que el suavizamiento con lambda 10 fue efectivo para disminuir el sobreajuste del modelo dinámico. 
+
+
+```{r tsBetas_dinam_std_suav_10,cache=TRUE, dependson=c('GLM_Dinamico_suav_10_Std'), message=FALSE, warning=FALSE, fig.width=12,fig.height=8,fig.cap='\\ref{fig:tsBetas_Dinam_suav_10_Std}Coeficientes Estimados: Modelo \\eqref{eq:mod_dinam_suav_10_Std}'}
+#betas
+par(mfrow=c(3,2))
+plot_beta_dinam_std_suav_10<-plot_beta(out.beta=out_dinam_std_suav_10.beta)
+aux<-lapply(1:6,plot_beta_dinam_std_suav_10)
+```
+
+Por último, la figura \ref{fig:tsBetas_Dinam_suav_10_Std} muestra la serie de tiempo de los coeficientes estimados en el modelo. Cabe destacar que en este modelo, incluso con la introducción del suavizamiento, los coeficientes siguen sin ser significativos. Ninguno de los coeficientes es significativos ya que en la figura se puede observar que todos los coeficientes contienen al cero en algún momento del tiempo. 
+
+### GLM Dinámico con Intercepto Estático y Suavizamiento ($\lambda=100$)
+
+```{r GLM_Dinamico_suav_100_Std,cache=TRUE, dependson=c('SetsDatos','Params'), message=FALSE, warning=FALSE, eval=TRUE, include=FALSE}
+source('Modelos/Mod_suav_100_Std.R')
+```
+
+Dado que el modelo dinámico con intercepto estático y suavizamiento ($\lambda_10$) pno es suficiente, como quinto modelo se estima un modelo lineal generalizado normal dinámico con intrcepto estático y mayor suavizamiento definido como:
+\begin{eqnarray}\label{eq:mod_dinam_suav_100_Std}\nonumber
+  WTI_t&=&\beta_{0,t}+\beta_{1,t}JPM_t+\beta_{2,t}VIX_t+\beta_{3,t} ProdOPEP_t+\beta_{4,t} DemPet_t+\beta_{5,t} TBILL10_t+\beta_{6,t} TBILL1_t+\epsilon_t\\
+  \beta_{j,t}t&=&\beta_{j,t-1}+\omega_t\\
+  \omega_t&=&\lambda\epsilon_t
+\end{eqnarray}
+
+donde $\epsilon_t \sim N(0,V^{-1})$, $\omega_t \sim N(0,W^{-1})$ y $\lambda=100$. Como distribución inicial de los coeficientes $\beta_j$ se utiliza una normal no informativa; esto es $\beta_{j,0}\sim N(0,0.001)$ con $j=0,1,\cdots,6$. Por su parte, como distribución inicial para $\epsilon_0$ se utiliza una distribución gamma no informativa; es decir $\epsilon_0\sim gamma(0.1,0.1)$. La estimación del modelo se realizó utlizando JAGS en R. Se corrieron `r format(niter,scipen=999)` simulaciones para `r nchains` cadenas con un periodo de calentamiento de `r nburning` observaciones y sin adelgazamiento de la cadena (n.thin=1). En cuanto al ajuste del modelo, éste tuvo un valor $DIC=$ `r format(out_dinam_std_suav_100.dic,scipen=999)` y una pseudo-$R^2=$ `r format(round(pseudoR2_dinam_std_suav_100,2),scipen=999)`, por lo que el modelo está capturando aproximadamente el `r round(pseudoR2_dinam_std_suav_100,3)*100`% de la varianza de los datos.
+
+```{r Resumen_GLM_dinam_std_suav_100_Std,eval=FALSE, include=FALSE}
+#Tabla resumen
+out_dinam_std_suav_100.sum.t_beta_tabla<-xtable(out_dinam_std_suav_100.sum.t_beta,
+                              caption='Coeficientes Estimados para el \\eqref{eq:mod_dinam_suav_100_Std}',
+                              label='tabla:coef_mod_dinam_std_suav_100')
+align(out_dinam_std_suav_100.sum.t_beta_tabla)<-'l|rrrrrr'
+print(out_dinam_std_suav_100.sum.t_beta_tabla,comment=FALSE,caption.placement = 'top')
+```
+
+
+```{r PlotRegresores_dinam_std_suav_100,cache=TRUE, dependson=c('GLM_Dinamico_suav_100_Std'), fig.width=12,fig.height=6,fig.cap='\\label{fig:PlotRegresores_Dinam_suav100_Std}Regresores vs WTI: Modelo \\eqref{eq:mod_dinam_suav_100_Std}'}
+#Predictions
+par(mfrow=c(3,2))
+# JPM_Dollar_Index vs. WTI
+plot_RegvsWTI(x.name='JPM_Dollar_Index',out.yp=out_dinam_std_suav_100.yp,pos_leg='topleft')
+# VIX_Index vs. WTI
+plot_RegvsWTI(x.name='VIX_Index',out.yp=out_dinam_std_suav_100.yp,pos_leg='topright')
+# OPEP_TOTPROD vs. WTI
+plot_RegvsWTI(x.name='OPEP_TOTPROD',out.yp=out_dinam_std_suav_100.yp,pos_leg='topleft')
+# OPEP_TOTDEM vs. WTI
+plot_RegvsWTI(x.name='OPEP_TOTDEM',out.yp=out_dinam_std_suav_100.yp,pos_leg='topleft')
+# TBILL_10YR vs. WTI
+plot_RegvsWTI(x.name='TBILL_10YR',out.yp=out_dinam_std_suav_100.yp,pos_leg='topright')
+# TBILL_1YR vs. WTI
+plot_RegvsWTI(x.name='TBILL_1YR',out.yp=out_dinam_std_suav_100.yp,pos_leg='topright')
+```
+
+La figura \ref{fig:PlotRegresores_Dinam_suav100_Std} muestra el valor observado, el valor pronosticado y los intervalos de predicción para cada uno de los regresores vs el precio del WTI. Se puede notar que la variabilidad en todos los regresores sigue siendo mínima, lo que indica que aún podemos tener problemas de sobreajuste y que puede ser que todavía se requiera aumentar el suavizameinto de la serie para poder generalizar la dinámica del WTI. 
+
+```{r tsWTI_dinam_std_suav_100,fig.width=12,cache=TRUE, dependson=c('GLM_Dinamico_suav_100_Std'),fig.height=6,fig.cap='\\label{fig:tsWTI_Dinam_suav_100_Std}Ajuste y Predicción: Modelo \\eqref{eq:mod_dinam_suav_100_Std}'}
+#t vs y
+par(mfrow=c(1,1))
+plot_tsWTI(out.yp=out_dinam_std_suav_100.yp,pos_leg='topleft')
+```
+
+La figura \ref{fig:tsWTI_Dinam_suav_100_Std} muestra la serie de tiempo observada para el precio del WTI, los valores pronosticados y el pronóstico para el tercer trimestre del 2018 junto con sus intervalos de predicción.  
+Al igual que con suavizamiento de 10, en el caso de un lambda = 100, se puede observar el suavizamiento del modelo ya que no es un ajuste perfecto a los datos observados. Asimismo, se puede observar que el intervalo de confianza crecer al aumentar lambda. 
+
+
+```{r tsBetas_dinam_std_suav_100,message=FALSE, cache=TRUE, dependson=c('GLM_Dinamico_suav_100_Std'), warning=FALSE, fig.width=12,fig.height=8,fig.cap='\\label{fig:tsBetas_Dinam_suav_100_std}Coeficientes Estimados: Modelo \\eqref{eq:mod_dinam_suav_100_Std}'}
+#betas
+par(mfrow=c(3,2))
+plot_beta_dinam_std_suav_100<-plot_beta(out.beta=out_dinam_std_suav_100.beta)
+aux<-lapply(1:6,plot_beta_dinam_std_suav_100)
+```
+
+Por último, la figura \ref{tsBetas_Dinam_suav_100_std} muestra la serie de tiempo de los coeficientes estimados en el modelo. Nuevamente, el suavizamiento de lambda = 100, aunque mejoró el sobreajuste del modelo no es suficiente ya que ningún coeficente es significativo. Todos los coeficientes contienen al cero (en un intervalo de confianza del 95%) en algunos puntos del tiempo. 
+Por lo tanto un suavizamiento de 100 sigue sin ser suficiente. 
+
+### GLM Dinámico con Intercepto Estático y Suavizamiento ($\lambda=1000$)
+
+```{r GLM_Dinamico_suav_1000_Std,cache=TRUE, dependson=c('SetsDatos','Params'), message=FALSE, warning=FALSE, eval=TRUE, include=FALSE}
+source('Modelos/Mod_suav_1000_Std.R')
+```
+
+Dado que los dos modelos dinámicos anteriores presentan sobre ajuste, para el quinto modelo se incrementó el valor de $\lambda$ a 1,000. Esto es, el modelo se define como:
+\begin{eqnarray}\label{eq:mod_dinam_suav_1000_Std}\nonumber
+  WTI_t&=&\beta_{0,t}+\beta_{1,t}JPM_t+\beta_{2,t}VIX_t+\beta_{3,t} ProdOPEP_t+\beta_{4,t} DemPet_t+\beta_{5,t} TBILL10_t+\beta_{6,t} TBILL1_t+\epsilon_t\\
+  \beta_{j,t}t&=&\beta_{j,t-1}+\omega_t\\
+  \omega_t&=&\lambda\epsilon_t
+\end{eqnarray}
+
+donde $\epsilon_t \sim N(0,V^{-1})$, $\omega_t \sim N(0,W^{-1})$ y $\lambda=1000$. Como distribución inicial de los coeficientes $\beta_j$ se utiliza una normal no informativa; esto es $\beta_{j,0}\sim N(0,0.001)$ con $j=0,1,\cdots,6$. Por su parte, como distribución inicial para $\epsilon_0$ se utiliza una distribución gamma no informativa; es decir $\epsilon_0\sim gamma(0.1,0.1)$. La estimación del modelo se realizó utlizando JAGS en R. Se corrieron `r format(niter,scipen=999)` simulaciones para `r nchains` cadenas con un periodo de calentamiento de `r nburning` observaciones y sin adelgazamiento de la cadena (n.thin=1). En cuanto al ajuste del modelo, éste tuvo un valor $DIC=$ `r format(out_dinam_std_suav_1000.dic,scipen=999)` y una pseudo-$R^2=$ `r format(round(pseudoR2_dinam_std_suav_1000,2),scipen=999)`, por lo que el modelo está capturando aproximadamente el `r round(pseudoR2_dinam_std_suav_1000,3)*100`% de la varianza de los datos.
+
+```{r Resumen_GLM_dinam_std_suav_100000,cache=TRUE, dependson=c('GLM_Dinamico_suav_1000_Std'), eval=FALSE, include=FALSE}
+#Tabla resumen
+out_dinam_std_suav_1000.sum.t_beta_tabla<-xtable(out_dinam_std_suav_1000.sum.t_beta,
+                              caption='Coeficientes Estimados para el Modelo Dinámico con suavizamiento 1000',
+                              label='tabla:coef_mod_dinam_suav_1000_Std')
+align(out_dinam_std_suav_1000.sum.t_beta_tabla)<-'l|rrrrrr'
+print(out_dinam_std_suav_1000.sum.t_beta_tabla,comment=FALSE,caption.placement = 'top')
+```
+
+
+```{r PlotRegresores_dinam_std2_suav_1000,cache=TRUE, dependson=c('GLM_Dinamico_suav_1000_Std'), fig.width=12,fig.height=6,fig.cap='\\label{fig:PlotRegresores_Dinam_suav_1000_Std}Regresores vs WTI: Modelo \\eqref{eq:mod_dinam_suav_1000_Std}'}
+#Predictions
+par(mfrow=c(3,2))
+# JPM_Dollar_Index vs. WTI
+plot_RegvsWTI(x.name='JPM_Dollar_Index',out.yp=out_dinam_std_suav_1000.yp,pos_leg='topleft')
+# VIX_Index vs. WTI
+plot_RegvsWTI(x.name='VIX_Index',out.yp=out_dinam_std_suav_1000.yp,pos_leg='topright')
+# OPEP_TOTPROD vs. WTI
+plot_RegvsWTI(x.name='OPEP_TOTPROD',out.yp=out_dinam_std_suav_1000.yp,pos_leg='topleft')
+# OPEP_TOTDEM vs. WTI
+plot_RegvsWTI(x.name='OPEP_TOTDEM',out.yp=out_dinam_std_suav_1000.yp,pos_leg='topleft')
+# TBILL_10YR vs. WTI
+plot_RegvsWTI(x.name='TBILL_10YR',out.yp=out_dinam_std_suav_1000.yp,pos_leg='topright')
+# TBILL_1YR vs. WTI
+plot_RegvsWTI(x.name='TBILL_1YR',out.yp=out_dinam_std_suav_1000.yp,pos_leg='topright')
+```
+
+La figura \ref{fig:PlotRegresores_Dinam_suav_1000_Std} muestra el valor observado, el valor pronosticado y los intervalos de predicción para cada uno de los regresores vs el precio del WTI. A diferencia de los modelos anteriores con suavizamiento, al usar $\lambda=1000$ ya se puede observar una mayor variabilidad en los datos. Además, los valores pronosticados ya no son idénticos a los observados por lo que se espera que el modelo esté generalizando mucho mejor que los anteriores. 
+
+```{r tsWTI_dinam_std_suav_1000,cache=TRUE, dependson=c('GLM_Dinamico_suav_1000_Std'), fig.width=12,fig.height=6,fig.cap='\\label{fig:tsWTI_Dinam_suav_1000_Std}Ajuste y Predicción: Modelo \\eqref{eq:mod_dinam_suav_1000_Std}'}
+#t vs y
+par(mfrow=c(1,1))
+plot_tsWTI(out.yp=out_dinam_std_suav_1000.yp,pos_leg='topleft')
+```
+
+La figura \ref{ffig:tsWTI_Dinam_suav_1000_Std} muestra la serie de tiempo observada para el precio del WTI, los valores pronosticados y el pronóstico para el tercer trimestre del 2018 junto con sus intervalos de predicción.  
+En este modelo podemos observar que la predicción ya no es idéntica a la serie observada. De hecho, parece ahora el modelo sobrestima y subestima muchos datos a lo largo del tiempo. En este caso, el modelo pierde precisión y se parece más l modelo estático. Esto puede indicar que  el suavizamiento ya es demasiado alto para el modelo. 
+
+
+```{r tsBetas_dinam_std_suav_1000,cache=TRUE, dependson=c('GLM_Dinamico_suav_1000_Std'), message=FALSE, warning=FALSE, fig.width=12,fig.height=8,fig.cap='\\label{fig:tsWTI_Dinam_suav_1000_Std}Coeficientes Estimados: Modelo \\eqref{eq:mod_dinam_suav_1000_Std}'}
+#betas
+par(mfrow=c(3,2))
+plot_beta_dinam_std_suav_1000<-plot_beta(out.beta=out_dinam_std_suav_1000.beta)
+aux<-lapply(1:6,plot_beta_dinam_std_suav_1000)
+```
+
+Por último, la figura \ref{fig:tsWTI_Dinam_suav_1000_Std} muestra la serie de tiempo de los coeficientes estimados en el modelo. Nuevamente, ningún coeficiente es significativo ya que todos contienen en un intervalo de confianza del 95% el cero en algún momento del tiempo. 
+Esto nos dice que a lo mejor estandarizar los datos e intriducir suavizamiento no es la estrategia correcta.
+Es por esto que pasamaremos a transformar los datos. 
 
 ## Datos Transformados \label{sec:Transformados}

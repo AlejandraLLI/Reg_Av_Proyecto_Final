@@ -54,3 +54,7 @@ out_estat_std.dic<-mod_estat_std.sim$BUGSoutput$DIC
 
 #-Predictions-
 out_estat_std.yp<-out_estat_std.sum[grep("yp",rownames(out_estat_std.sum)),]
+
+# -Pseudo R2-
+pseudoR2_estat_std<-pseudoR2(out_estat_std.yp)
+
