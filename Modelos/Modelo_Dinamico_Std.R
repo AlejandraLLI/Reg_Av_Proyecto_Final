@@ -69,5 +69,5 @@ out_dinam_std.alpha<-out_dinam_std.sum[grep("alpha",rownames(out_dinam_std.sum))
 out_dinam_std.beta<-out_dinam_std.sum[grep("beta",rownames(out_dinam_std.sum)),]
 
 #-PseudoR2-
-pseudoR2_dinam_std<-pseudoR2(out.yp=out_dinam_std.yp)
+pseudoR2_dinam_std<-pseudoR2_std(out.yp=out_dinam_std.yp)
 

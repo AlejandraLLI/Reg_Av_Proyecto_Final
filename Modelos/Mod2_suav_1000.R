@@ -48,4 +48,4 @@ out_dinam_transf_suav_1000.yp<-out_dinam_transf_suav_1000.sum[grep("yp",rownames
 out_dinam_transf_suav_1000.beta<-out_dinam_transf_suav_1000.sum[grep("beta",rownames(out_dinam_transf_suav_1000.sum)),]
 
 #-PseudoR2-
-pseudoR2_dinam_transf_suav_1000<-pseudoR2(out.yp = out_dinam_transf_suav_1000.yp)
+pseudoR2_dinam_transf_suav_1000<-pseudoR2_transf(out.yp = out_dinam_transf_suav_1000.yp)

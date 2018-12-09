@@ -56,4 +56,4 @@ out_dinam_transf.yp<-out_dinam_transf.sum[grep("yp",rownames(out_dinam_transf.su
 out_dinam_transf.beta<-out_dinam_transf.sum[grep("beta",rownames(out_dinam_transf.sum)),]
 
 # -PseudoR2-
-pseudoR2_dinam_transf<-pseudoR2(out.yp = out_dinam_transf.yp)
+pseudoR2_dinam_transf<-pseudoR2_transf(out.yp = out_dinam_transf.yp)

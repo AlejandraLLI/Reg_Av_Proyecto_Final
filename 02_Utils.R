@@ -32,6 +32,7 @@ plot_ts<-function(datos,Fechas){
     # axis(1,at=c(seq(1,nobs,6),(n-m):n),labels=Fechas[c(seq(1,nobs,6),(n-m):n)],las=2)
     
     abline(h=seq(ymin,ymax,ceiling((ymax-ymin)/10)),lty=2,lwd=1,col='gray50')
+    abline(v=match("jul-18",Fecha),lty=2,lwd=1,col='gray50')
   }
   
   output
@@ -51,7 +52,16 @@ getmode <- function(x) {
 
 # Calculo de la pseud-R2
 pseudoR2<-function(out.yp){
-  (cor(datos$WTI[1:(n-m)],out.yp[1:(n-m),1]))^2 
+  (cor(datos_1$WTI[1:(n-m)],out.yp[1:(n-m),1]))^2 
+}
+
+pseudoR2_std<-function(out.yp){
+  aux<-out.yp[1:(n-m),1]*sd(datos_1$WTI[1:(n-m)])+mean(datos_1$WTI[1:(n-m)])
+  (cor(datos_1$WTI[1:(n-m)],aux))^2 
+}
+
+pseudoR2_transf<-function(out.yp){
+  (cor(datos_1$WTI[1:(n-m)],exp(out.yp[1:(n-m),1])))^2 
 }
 
 # Grafica de regresores vs WTI
@@ -63,7 +73,7 @@ plot_RegvsWTI<-function(x.name,out.yp,pos_leg){
   x.name<-case_when(x.name=='JPM_Dollar_Index'~'JPM Dollar Index',
                     x.name=='VIX_Index'~'VIX Index',
                     x.name=='OPEP_TOTPROD'~'Prod. OPEP',
-                    x.name=='OPEP_TOTDEM'~'Dem. OPEP',
+                    x.name=='OPEP_TOTDEM'~'Dem. Petroleo',
                     x.name=='TBILL_10YR'~'TBILL-10YR',
                     x.name=='TBILL_1YR'~'TBILL-1YR')
   
@@ -104,12 +114,14 @@ plot_tsWTI<-function(out.yp,pos_leg){
   
   axis(1,at=seq(1,n,6),labels=Fecha[seq(1,n,6)],las=2)
   # axis(1,at=c(seq(1,nobs,6),(n-m):n),labels=Fechas[c(seq(1,nobs,6),(n-m):n)],las=2)
+  
+  abline(v=match("jul-18",Fecha),lty=2,lwd=1,col='gray50')
 
   legend(pos_leg,legend=c('Observado','Ajustado','Pronosticado'),lty=c(1,2,1),lwd=c(2,1,2),col=c('grey50','firebrick1','royalblue1'))
 }
 
 # Gráfica de serire de tiempo de coeficients
-plot_beta<-function(out.beta){
+plot_beta<-function(out.beta,large.main=TRUE){
   
   plotfun<-function (x){
     
@@ -117,7 +129,7 @@ plot_beta<-function(out.beta){
     name.y<-case_when(x==1~'JPM Dollar Index',
                       x==2~'VIX Index',
                       x==3~'Prod. OPEP',
-                      x==4~'Dem. OPEP',
+                      x==4~'Dem. Petróleo',
                       x==5~'TBILL-10YR',
                       x==6~'TBILL-1YR')
     
@@ -131,7 +143,7 @@ plot_beta<-function(out.beta){
          type="l",lty=1,lwd=2,col='darkgoldenrod1',
          ylim=c(ymin,ymax),xlim=c(xmin,xmax),xaxt='n',
          xlab='',ylab=name.y,
-         main=paste('Serie de tiempo del coeficiente estimado para ', name.y,sep="")) # Estimado (Media)
+         main=paste(ifelse(large.main,'Serie de tiempo del coeficiente estimado para ',''), name.y,sep="")) # Estimado (Media)
     
     rect(xleft=match("ene-08",Fecha),ybottom=par("usr")[3],xright=match("jun-09",Fecha),ytop=par("usr")[4],col='#3333334D',border=NA)
     rect(xleft=match("abr-14",Fecha),ybottom=par("usr")[3],xright=match("ene-16",Fecha),ytop=par("usr")[4],col='#3333334D',border=NA)
@@ -139,6 +151,8 @@ plot_beta<-function(out.beta){
     lines(out.beta[seq(x,nrow(out.beta),k),3],lty=2,lwd=2,col='olivedrab') # IP inf
     
     lines(out.beta[seq(x,nrow(out.beta),k),7],lty=2,lwd=2,col='olivedrab') # IP sup
+    
+    abline(h=0,lty=3,lwd=2,col='gray30')
     
     axis(1,at=seq(1,n,6),labels=Fecha[seq(1,n,6)],las=2)
     # axis(1,at=c(seq(1,nobs,6),(n-m):n),labels=Fechas[c(seq(1,nobs,6),(n-m):n)],las=2)
@@ -148,4 +162,12 @@ plot_beta<-function(out.beta){
   }  
   
   plotfun
+}
+
+# color para matriz de correlaciones
+colorCorrel<-function(x){
+  
+  ifelse(x>=0.4 & x<1, paste("\\color{red}{",formatC(x,dig=2,format="f"),"}"),
+         ifelse(x>-1 & x<=-0.4, paste("\\color{red}{",formatC(x,dig=2,format="f"),"}"),
+                paste("\\color{black}{",formatC(x,dig=2,format="f"),"}")))
 }
